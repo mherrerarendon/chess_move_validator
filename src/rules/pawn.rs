@@ -1,5 +1,5 @@
 use chess_pgn_parser::{Square, File, Rank};
-use super::{PieceRules, PieceData, UniquePiece};
+use super::{PieceRules, PieceData, UniquePiece, Board};
 pub struct PawnRules;
 
 impl PawnRules {
@@ -55,5 +55,23 @@ impl PieceRules for PawnRules {
         }
 
         squares
+    }
+
+    fn get_diagonal_squares(&self, piece_data: &PieceData, board: &Board) -> Vec<Square> {
+        Vec::new()
+    }
+
+    fn get_straight_squares(&self, piece_data: &PieceData, board: &Board) -> Vec<Square> {
+        Vec::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_move_only() {
+        let pawn = PawnRules::new();
+
     }
 }

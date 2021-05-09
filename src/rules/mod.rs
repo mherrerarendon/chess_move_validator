@@ -3,7 +3,16 @@ use crate::model::{PieceData};
 use super::Board;
 
 pub mod pawn;
+pub mod rook;
+pub mod knight;
+pub mod bishop;
+pub mod queen;
+
 pub use pawn::PawnRules as PawnRules;
+pub use rook::RookRules as RookRules;
+pub use knight::KnightRules as KnightRules;
+pub use bishop::BishopRules as BishopRules;
+pub use queen::QueenRules as QueenRules;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum UniquePiece {
