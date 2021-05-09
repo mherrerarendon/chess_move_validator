@@ -7,12 +7,14 @@ pub mod rook;
 pub mod knight;
 pub mod bishop;
 pub mod queen;
+pub mod king;
 
 pub use pawn::PawnRules as PawnRules;
 pub use rook::RookRules as RookRules;
 pub use knight::KnightRules as KnightRules;
 pub use bishop::BishopRules as BishopRules;
 pub use queen::QueenRules as QueenRules;
+pub use king::KingRules as KingRules;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum UniquePiece {
@@ -22,9 +24,9 @@ pub enum UniquePiece {
 
 pub trait PieceRules {
     fn get_initial_square(&self, piece_data: &PieceData) -> Square;
-    fn get_move_only_squares(&self, piece_data: &PieceData) -> Vec<Square> { Vec::new() }
-    fn get_capture_only_squares(&self, piece_data: &PieceData) -> Vec<Square> { Vec::new() }
-    fn get_single_move_or_capture_squares(&self, piece_data: &PieceData) -> Vec<Square> { Vec::new() }
+    fn get_move_only_squares(&self, _piece_data: &PieceData) -> Vec<Square> { Vec::new() }
+    fn get_capture_only_squares(&self, _piece_data: &PieceData) -> Vec<Square> { Vec::new() }
+    fn get_single_move_or_capture_squares(&self, _piece_data: &PieceData) -> Vec<Square> { Vec::new() }
 
     // Override with empty square Vec to disable
     fn get_diagonal_squares(&self, piece_data: &PieceData, board: &Board) -> Vec<Square> {
