@@ -1,4 +1,4 @@
-use chess_pgn_parser::{Square, File, Rank};
+use chess_pgn_parser::{Square, File};
 
 mod rules;
 mod model;
@@ -18,7 +18,45 @@ impl Board {
     }
 
     fn create_initial_pieces() -> Vec<PieceData> {
-        vec![PieceData::new_pawn(File::A, true)]
+        vec![
+            PieceData::new_pawn(File::A, true),
+            PieceData::new_pawn(File::B, true),
+            PieceData::new_pawn(File::C, true),
+            PieceData::new_pawn(File::D, true),
+            PieceData::new_pawn(File::E, true),
+            PieceData::new_pawn(File::F, true),
+            PieceData::new_pawn(File::G, true),
+            PieceData::new_pawn(File::H, true),
+            PieceData::new_pawn(File::A, false),
+            PieceData::new_pawn(File::B, false),
+            PieceData::new_pawn(File::C, false),
+            PieceData::new_pawn(File::D, false),
+            PieceData::new_pawn(File::E, false),
+            PieceData::new_pawn(File::F, false),
+            PieceData::new_pawn(File::G, false),
+            PieceData::new_pawn(File::H, false),
+
+            PieceData::new_rook(File::A, true),
+            PieceData::new_rook(File::H, true),
+            PieceData::new_rook(File::A, false),
+            PieceData::new_rook(File::H, false),
+
+            PieceData::new_knight(File::B, true),
+            PieceData::new_knight(File::G, true),
+            PieceData::new_knight(File::B, false),
+            PieceData::new_knight(File::G, false),
+
+            PieceData::new_bishop(File::C, true),
+            PieceData::new_bishop(File::F, true),
+            PieceData::new_bishop(File::C, false),
+            PieceData::new_bishop(File::F, false),
+
+            PieceData::new_queen(true),
+            PieceData::new_queen(false),
+
+            PieceData::new_king(true),
+            PieceData::new_king(false),
+        ]
     }
 
     pub fn add_pgn_moves(&mut self, pgn_moves: &str) {

@@ -37,11 +37,11 @@ impl PieceRules for KnightRules {
         self.get_move_only_squares(piece_data)
     }
 
-    fn get_diagonal_squares(&self, piece_data: &PieceData, board: &Board) -> Vec<Square> {
+    fn get_diagonal_squares(&self, _piece_data: &PieceData, _board: &Board) -> Vec<Square> {
         Vec::new()
     }
 
-    fn get_straight_squares(&self, piece_data: &PieceData, board: &Board) -> Vec<Square> {
+    fn get_straight_squares(&self, _piece_data: &PieceData, _board: &Board) -> Vec<Square> {
         Vec::new()
     }
 }
