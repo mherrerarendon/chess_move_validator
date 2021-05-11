@@ -7,7 +7,7 @@ pub struct PieceData {
     pub piece: UniquePiece,
     pub white: bool,
     pub curr_square: Option<Square>,
-    behavior: Box<dyn PieceRules>,
+    pub behavior: Box<dyn PieceRules>,
     pub has_moved: bool
 }
 

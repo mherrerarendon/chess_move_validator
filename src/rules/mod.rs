@@ -53,7 +53,7 @@ pub trait PieceRules {
         let mut curr_square = piece_data.curr_square.as_ref().unwrap().clone();
         loop {
             if let Some(new_square) = curr_square.new_with_offset(file_offset, rank_offset) {
-                match board.get_piece_at_square(&new_square) {
+                match board.get_piece_data_at_square(&new_square) {
                     Some(piece_at_square) if piece_at_square.white != piece_data.white => {
                         squares.push(new_square);
                         break;
@@ -74,11 +74,11 @@ pub trait PieceRules {
         let mut squares = self.get_diagonal_squares(piece_data, board);
         squares.extend(self.get_straight_squares(piece_data, board));
         let move_only_squares: Vec<Square> = self.get_move_only_squares(piece_data).into_iter()
-            .filter(|square| board.get_piece_at_square(square).is_none()).collect();
+            .filter(|square| board.get_piece_data_at_square(square).is_none()).collect();
 
         let capture_only_squares: Vec<Square> = self.get_capture_only_squares(piece_data).into_iter()
             .filter(|square| {
-                if let Some(piece) = board.get_piece_at_square(square) {
+                if let Some(piece) = board.get_piece_data_at_square(square) {
                     return piece.white != piece_data.white;
                 }
 
