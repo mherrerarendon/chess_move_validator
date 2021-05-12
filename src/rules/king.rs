@@ -25,6 +25,7 @@ impl PieceRules for KingRules {
         if let Some(new_square) = curr_square.new_with_offset(-1, -1) {squares.push(new_square);}
         if let Some(new_square) = curr_square.new_with_offset(-1, 0) {squares.push(new_square);}
         if let Some(new_square) = curr_square.new_with_offset(-1, 1) {squares.push(new_square);}
+        // TODO: add castling
         squares
     }
 

@@ -79,7 +79,7 @@ impl Board {
                 }
             }
         }
-        unreachable!()
+        panic!("Unable to disambiguate from square");
     }
 
     pub fn add_pgn_moves(&mut self, pgn_moves: &str) -> Result<(), ParseError> {
@@ -135,7 +135,12 @@ impl Board {
     }
 
     pub fn get_valid_squares_for_piece(&self, piece: UniquePiece, white: bool) -> Vec<Square> {
-        vec![Square::E1]
+        let piece_data = self.pieces.iter().find(|p| p.piece == piece && p.white == white).expect("missing piece");
+        if piece_data.curr_square.is_some() {
+            piece_data.behavior.get_valid_squares(piece_data, &self)
+        } else {
+            Vec::new()
+        }
     }
 
     pub(crate) fn get_piece_data_at_square(&self, square: &Square) -> Option<&PieceData> {
@@ -162,7 +167,7 @@ impl Board {
 
     fn get_all_live_piece_data_with_type(&self, piece: Piece) -> Vec<&PieceData> {
         self.pieces.iter().filter(|p| {
-            piece == Self::unique_to_piece(p.piece)
+            piece == Self::unique_to_piece(p.piece) && p.curr_square.is_some()
         }).collect()
     }
 
