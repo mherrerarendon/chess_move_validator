@@ -61,8 +61,25 @@ impl Board {
         ]
     }
 
-    fn disambiguate_from_square(&self, piece: Piece, to: &Square) -> Square {
-        todo!("implement");
+    fn disambiguate_from_square(&self, piece: Piece, from: &Square, to: &Square) -> Square {
+        let piece_data_list = self.get_all_live_piece_data_with_type(piece);
+        if let Some(rank) = from.rank() {
+            if let Some(piece_data) = piece_data_list.iter().find(|p|p.curr_square.as_ref().unwrap().rank().unwrap() == rank) {
+                return piece_data.curr_square.as_ref().unwrap().clone();
+            }
+        } else if let Some(file) = from.file() {
+            if let Some(piece_data) = piece_data_list.iter().find(|p|p.curr_square.as_ref().unwrap().file().unwrap() == file) {
+                return piece_data.curr_square.as_ref().unwrap().clone();
+            } 
+        } else {
+            for piece_data in piece_data_list {
+                let valid_squares = piece_data.behavior.get_valid_squares(piece_data, &self);
+                if valid_squares.iter().find(|s| *s == to).is_some() {
+                    return piece_data.curr_square.as_ref().unwrap().clone();
+                }
+            }
+        }
+        unreachable!()
     }
 
     pub fn add_pgn_moves(&mut self, pgn_moves: &str) -> Result<(), ParseError> {
@@ -73,7 +90,7 @@ impl Board {
                     let known_from = match from.get_known() {
                         Some(known_from) => known_from,
                         None => {
-                            self.disambiguate_from_square(piece, to)
+                            self.disambiguate_from_square(piece, from, to)
                         }
                     };
                     let piece_data = self.get_mut_piece_data_at_square(&known_from).expect("Missing piece");
@@ -141,6 +158,23 @@ impl Board {
             }
         }
         return None;
+    }
+
+    fn get_all_live_piece_data_with_type(&self, piece: Piece) -> Vec<&PieceData> {
+        self.pieces.iter().filter(|p| {
+            piece == Self::unique_to_piece(p.piece)
+        }).collect()
+    }
+
+    fn unique_to_piece(unique_piece: UniquePiece) -> Piece {
+        match unique_piece {
+            UniquePiece::QRook | UniquePiece::KRook => Piece::Rook,
+            UniquePiece::QKnight | UniquePiece::KKnight => Piece::Knight,
+            UniquePiece::QBishop | UniquePiece::KBishop => Piece::Bishop,
+            UniquePiece::Queen => Piece::Queen,
+            UniquePiece::King => Piece::King,
+            _ => Piece::Pawn
+        } 
     }
 }
 
