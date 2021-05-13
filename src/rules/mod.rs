@@ -64,6 +64,8 @@ pub trait PieceRules {
                     },
                     _ => break
                 }
+            } else {
+                break;
             }
         }
 
@@ -89,5 +91,65 @@ pub trait PieceRules {
         squares.extend(capture_only_squares.into_iter());
 
         squares
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chess_pgn_parser::Square;
+    use crate::{Board, UniquePiece};
+
+    #[test]
+    fn test_pawn_behavior() {
+        let board = Board::new();     
+        let pawn = board.get_piece_data_at_square(&Square::A2).expect("mising piece.");
+        assert_eq!(pawn.piece, UniquePiece::APawn);
+        let valid_squares = pawn.behavior.get_valid_squares(pawn, &board);
+        assert_eq!(2, valid_squares.len());
+    }
+    
+    #[test]
+    fn test_rook_behavior() {
+        let board = Board::new();
+        let rook = board.get_piece_data_at_square(&Square::A1).expect("missing piece.");
+        assert_eq!(rook.piece, UniquePiece::QRook);
+        let valid_squares = rook.behavior.get_valid_squares(rook, &board);
+        assert_eq!(0, valid_squares.len());
+    }
+    
+    #[test]
+    fn test_knight_behavior() {
+        let board = Board::new();
+        let knight = board.get_piece_data_at_square(&Square::B1).expect("missing piece.");
+        assert_eq!(knight.piece, UniquePiece::QKnight);
+        let valid_squares = knight.behavior.get_valid_squares(knight, &board);
+        assert_eq!(2, valid_squares.len());
+    }
+
+    #[test]
+    fn test_bishop_behavior() {
+        let board = Board::new();
+        let bishop = board.get_piece_data_at_square(&Square::C1).expect("missing piece.");
+        assert_eq!(bishop.piece, UniquePiece::QBishop);
+        let valid_squares = bishop.behavior.get_valid_squares(bishop, &board);
+        assert_eq!(0, valid_squares.len());
+    }
+
+    #[test]
+    fn test_queen_behavior() {
+        let board = Board::new();
+        let queen = board.get_piece_data_at_square(&Square::D1).expect("missing piece.");
+        assert_eq!(queen.piece, UniquePiece::Queen);
+        let valid_squares = queen.behavior.get_valid_squares(queen, &board);
+        assert_eq!(0, valid_squares.len());
+    }
+
+    #[test]
+    fn test_king_behavior() {
+        let board = Board::new();
+        let king = board.get_piece_data_at_square(&Square::E1).expect("missing piece.");
+        assert_eq!(king.piece, UniquePiece::King);
+        let valid_squares = king.behavior.get_valid_squares(king, &board);
+        assert_eq!(0, valid_squares.len());
     }
 }

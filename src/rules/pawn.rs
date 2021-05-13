@@ -53,6 +53,8 @@ impl PieceRules for PawnRules {
         if let Some(left_capture_square) = curr_square.new_with_offset(-1, direction) {
             squares.push(left_capture_square);
         }
+        
+        // TODO: en passant
 
         squares
     }

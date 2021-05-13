@@ -1,4 +1,4 @@
-use chess_pgn_parser::{File, Move::BasicMove, Move::CastleKingside, Move::CastleQueenside, Piece, Rank, Square, parse_moves, peggler::ParseError};
+use chess_pgn_parser::{File, Move::BasicMove, Move::CastleKingside, Move::CastleQueenside, Piece, Rank, Square, parse_move_sequence, peggler::ParseError};
 
 mod rules;
 mod model;
@@ -18,7 +18,7 @@ impl Board {
             pieces: Self::create_initial_pieces()
         }
     }
-
+    
     fn create_initial_pieces() -> Vec<PieceData> {
         vec![
             PieceData::new_pawn(File::A, true),
@@ -83,10 +83,14 @@ impl Board {
     }
 
     pub fn add_pgn_moves(&mut self, pgn_moves: &str) -> Result<(), ParseError> {
-        let game_moves = parse_moves(pgn_moves)?;
+        let game_moves = parse_move_sequence(pgn_moves)?;
         for game_move in game_moves.moves.iter() {
             match game_move.move_.move_ {
                 BasicMove { piece, ref to, ref from, is_capture, promoted_to } => {
+                    if let Some(captured_piece_data) = self.get_mut_piece_data_at_square(to) {
+                        assert!(is_capture);
+                        captured_piece_data.curr_square = None;
+                    }
                     let known_from = match from.get_known() {
                         Some(known_from) => known_from,
                         None => {
@@ -105,10 +109,6 @@ impl Board {
                             _ => panic!("Invalid promotion")
                         }
                     }
-                    
-                    let captured_piece_data = self.get_mut_piece_data_at_square(to).expect("Missing piece");
-                    assert!(is_capture);
-                    captured_piece_data.curr_square = None;
                 },
                 ref c @ CastleKingside | ref c @ CastleQueenside => {
                     let rank = if game_move.number.is_some() {Rank::R8} else {Rank::R1};
@@ -185,8 +185,39 @@ impl Board {
 
 #[cfg(test)]
 mod tests {
+    use super::Board;
+    use chess_pgn_parser::{Square, peggler::ParseError};
+    use std::collections::HashSet;
+
+    // TODO: this could be a macro
+    fn assert_valid_squares(expected: &[Square], actual: &[Square]) {
+        let expected_set: HashSet<_> = expected.iter().collect();
+        let actual_set: HashSet<_> = actual.iter().collect();
+        assert_eq!(expected_set, actual_set);
+    }
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn test_pawn_capture() -> Result<(), ParseError> {
+        let mut board = Board::new();
+        board.add_pgn_moves("1. d4 e5")?;
+        let pawn = board.get_piece_data_at_square(&Square::D4).expect("missing piece.");
+        let valid_squares = pawn.behavior.get_valid_squares(&pawn, &board);
+        assert_valid_squares(&[Square::E5, Square::D5], &valid_squares);
+
+        let pawn = board.get_piece_data_at_square(&Square::E5).expect("missing piece.");
+        let valid_squares = pawn.behavior.get_valid_squares(&pawn, &board);
+        assert_valid_squares(&[Square::D4, Square::E4], &valid_squares);
+        Ok(())
+    }
+
+    #[test]
+    fn test_pawn_en_passant() -> Result<(), ParseError> {
+        // TODO
+        Ok(())
+    }
+
+    #[test]
+    fn test_rook_capture() -> Result<(), ParseError> {
+
     }
 }
