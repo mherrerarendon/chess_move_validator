@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chess_pgn_parser = { path = "../chess_pgn_parser" }
+chess_pgn_parser = { git = "https://github.com/mherrerarendon/chess_pgn_parser" }
 
 [[example]]
 name = "pgn_setup"

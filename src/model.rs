@@ -23,7 +23,6 @@ impl PieceData {
                 File::F => UniquePiece::FPawn,
                 File::G => UniquePiece::GPawn,
                 File::H => UniquePiece::HPawn,
-                _ => panic!("Invalid arguments for pawn creation")
             },
             white,
             curr_square: None,

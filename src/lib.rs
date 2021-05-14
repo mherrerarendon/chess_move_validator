@@ -61,8 +61,8 @@ impl Board {
         ]
     }
 
-    fn disambiguate_from_square(&self, piece: Piece, from: &Square, to: &Square) -> Square {
-        let piece_data_list = self.get_all_live_piece_data_with_type(piece);
+    fn disambiguate_from_square(&self, piece: Piece, white: bool, from: &Square, to: &Square) -> Square {
+        let piece_data_list = self.get_all_live_piece_data_with_type(piece, white);
         if let Some(rank) = from.rank() {
             if let Some(piece_data) = piece_data_list.iter().find(|p|p.curr_square.as_ref().unwrap().rank().unwrap() == rank) {
                 return piece_data.curr_square.as_ref().unwrap().clone();
@@ -82,7 +82,7 @@ impl Board {
         panic!("Unable to disambiguate from square");
     }
 
-    fn add_basic_move(&mut self, piece: Piece, to: &Square, from: &Square, is_capture: bool, promoted_to: Option<Piece>) {
+    fn add_basic_move(&mut self, piece: Piece, white: bool, to: &Square, from: &Square, is_capture: bool, promoted_to: Option<Piece>) {
         if let Some(captured_piece_data) = self.get_mut_piece_data_at_square(to) {
             assert!(is_capture);
             captured_piece_data.curr_square = None;
@@ -90,7 +90,7 @@ impl Board {
         let known_from = match from.get_known() {
             Some(known_from) => known_from,
             None => {
-                self.disambiguate_from_square(piece, from, to)
+                self.disambiguate_from_square(piece, white, from, to)
             }
         };
         let piece_data = self.get_mut_piece_data_at_square(&known_from).expect("Missing piece");
@@ -126,7 +126,7 @@ impl Board {
         for game_move in game_moves.moves.iter() {
             match game_move.move_.move_ {
                 BasicMove { piece, ref to, ref from, is_capture, promoted_to } => {
-                    self.add_basic_move(piece, to, from, is_capture, promoted_to);
+                    self.add_basic_move(piece, game_move.number.is_some(), to, from, is_capture, promoted_to);
                 },
                 ref c @ CastleKingside | ref c @ CastleQueenside => {
                     let rank = if game_move.number.is_some() {Rank::R8} else {Rank::R1};
@@ -173,9 +173,9 @@ impl Board {
         return None;
     }
 
-    fn get_all_live_piece_data_with_type(&self, piece: Piece) -> Vec<&PieceData> {
+    fn get_all_live_piece_data_with_type(&self, piece: Piece, white: bool) -> Vec<&PieceData> {
         self.pieces.iter().filter(|p| {
-            piece == Self::unique_to_piece(p.piece) && p.curr_square.is_some()
+            piece == Self::unique_to_piece(p.piece) && p.curr_square.is_some() && p.white == white
         }).collect()
     }
 
@@ -193,6 +193,8 @@ impl Board {
 
 #[cfg(test)]
 mod tests {
+    use crate::{UniquePiece};
+
     use super::Board;
     use chess_pgn_parser::{Square, peggler::ParseError};
     use std::collections::HashSet;
@@ -209,10 +211,12 @@ mod tests {
         let mut board = Board::new();
         board.add_pgn_moves("1. d4 e5")?;
         let pawn = board.get_piece_data_at_square(&Square::D4).expect("missing piece.");
+        assert_eq!(pawn.piece, UniquePiece::DPawn);
         let valid_squares = pawn.behavior.get_valid_squares(&pawn, &board);
         assert_valid_squares(&[Square::E5, Square::D5], &valid_squares);
 
         let pawn = board.get_piece_data_at_square(&Square::E5).expect("missing piece.");
+        assert_eq!(pawn.piece, UniquePiece::EPawn);
         let valid_squares = pawn.behavior.get_valid_squares(&pawn, &board);
         assert_valid_squares(&[Square::D4, Square::E4], &valid_squares);
         Ok(())
@@ -235,6 +239,7 @@ mod tests {
         pawn.curr_square = None;
 
         let rook = board.get_piece_data_at_square(&Square::A1).expect("missing piece.");
+        assert_eq!(rook.piece, UniquePiece::QRook);
         let valid_squares = rook.behavior.get_valid_squares(rook, &board);
         assert_valid_squares(&[
             Square::A2,
@@ -247,6 +252,7 @@ mod tests {
         ], &valid_squares);
 
         let rook = board.get_piece_data_at_square(&Square::A8).expect("missing piece.");
+        assert_eq!(rook.piece, UniquePiece::QRook);
         let valid_squares = rook.behavior.get_valid_squares(rook, &board);
         assert_valid_squares(&[
             Square::A1,
@@ -263,8 +269,9 @@ mod tests {
     #[test]
     fn test_knight_capture() -> Result<(), ParseError> {
         let mut board = Board::new();
-        board.add_pgn_moves("1. kb3 kf6 2. ke4 a6")?;
+        board.add_pgn_moves("1. Nc3 Nf6 2. Ne4 a6")?;
         let knight = board.get_piece_data_at_square(&Square::F6).expect("missing piece");
+        assert_eq!(knight.piece, UniquePiece::KKnight);
         let valid_squares = knight.behavior.get_valid_squares(knight, &board);
         assert_valid_squares(&[
             Square::G8,
@@ -272,6 +279,77 @@ mod tests {
             Square::G4,
             Square::E4,
             Square::D5,
+        ], &valid_squares);
+
+        let knight = board.get_piece_data_at_square(&Square::E4).expect("missing piece");
+        assert_eq!(knight.piece, UniquePiece::QKnight);
+        let valid_squares = knight.behavior.get_valid_squares(knight, &board);
+        assert_valid_squares(&[
+            Square::F6,
+            Square::G5,
+            Square::G3,
+            Square::C3,
+            Square::C5,
+            Square::D6,
+        ], &valid_squares);
+        Ok(())
+    }
+
+    #[test]
+    fn test_bishop_capture() -> Result<(), ParseError> {
+        let mut board = Board::new();
+        board.add_pgn_moves("1. b3 e6 2. Ba3 a6")?;
+        let bishop = board.get_piece_data_at_square(&Square::A3).expect("missing piece.");
+        assert_eq!(bishop.piece, UniquePiece::QBishop);
+        let valid_squares = bishop.behavior.get_valid_squares(bishop, &board);
+        assert_valid_squares(&[
+            Square::B4,
+            Square::C5,
+            Square::D6,
+            Square::E7,
+            Square::F8,
+            Square::B2,
+            Square::C1,
+        ], &valid_squares);
+
+        let bishop = board.get_piece_data_at_square(&Square::F8).expect("missing piece.");
+        assert_eq!(bishop.piece, UniquePiece::KBishop);
+        let valid_squares = bishop.behavior.get_valid_squares(bishop, &board);
+        assert_valid_squares(&[
+            Square::A3,
+            Square::B4,
+            Square::C5,
+            Square::D6,
+            Square::E7,
+        ], &valid_squares);
+        Ok(())
+    }
+
+    #[test]
+    fn test_queen_capture() -> Result<(), ParseError> {
+        let mut board = Board::new();
+        board.add_pgn_moves("1. c3 e6 2. Qa4 Qh4")?;
+        let queen = board.get_piece_data_at_square(&Square::A4).expect("missing piece.");
+        assert_eq!(queen.piece, UniquePiece::Queen);
+        let valid_squares = queen.behavior.get_valid_squares(queen, &board);
+        assert_valid_squares(&[
+            Square::A3,
+            Square::B3,
+            Square::C2,
+            Square::D1,
+            Square::A5,
+            Square::A6,
+            Square::A7,
+            Square::B4,
+            Square::C4,
+            Square::D4,
+            Square::E4,
+            Square::F4,
+            Square::G4,
+            Square::H4,
+            Square::B5,
+            Square::C6,
+            Square::D7,
         ], &valid_squares);
         Ok(())
     }

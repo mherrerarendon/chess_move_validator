@@ -59,21 +59,11 @@ impl PieceRules for PawnRules {
         squares
     }
 
-    fn get_diagonal_squares(&self, piece_data: &PieceData, board: &Board) -> Vec<Square> {
+    fn get_diagonal_squares(&self, _piece_data: &PieceData, _board: &Board) -> Vec<Square> {
         Vec::new()
     }
 
-    fn get_straight_squares(&self, piece_data: &PieceData, board: &Board) -> Vec<Square> {
+    fn get_straight_squares(&self, _piece_data: &PieceData, _board: &Board) -> Vec<Square> {
         Vec::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_move_only() {
-        let pawn = PawnRules::new();
-
     }
 }

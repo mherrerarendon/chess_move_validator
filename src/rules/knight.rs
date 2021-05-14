@@ -45,13 +45,3 @@ impl PieceRules for KnightRules {
         Vec::new()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_move_only() {
-        let pawn = KnightRules::new();
-
-    }
-}
