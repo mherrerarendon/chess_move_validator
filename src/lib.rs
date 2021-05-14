@@ -351,6 +351,29 @@ mod tests {
             Square::C6,
             Square::D7,
         ], &valid_squares);
+
+        let queen = board.get_piece_data_at_square(&Square::H4).expect("missing piece.");
+        assert_eq!(queen.piece, UniquePiece::Queen);
+        let valid_squares = queen.behavior.get_valid_squares(queen, &board);
+        assert_valid_squares(&[
+            Square::H3,
+            Square::H2,
+            Square::G3,
+            Square::F2,
+            Square::A4,
+            Square::B4,
+            Square::C4,
+            Square::D4,
+            Square::E4,
+            Square::F4,
+            Square::G4,
+            Square::G5,
+            Square::F6,
+            Square::E7,
+            Square::D8,
+            Square::H5,
+            Square::H6,
+        ], &valid_squares);
         Ok(())
     }
 }
