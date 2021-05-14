@@ -82,33 +82,51 @@ impl Board {
         panic!("Unable to disambiguate from square");
     }
 
+    fn add_basic_move(&mut self, piece: Piece, to: &Square, from: &Square, is_capture: bool, promoted_to: Option<Piece>) {
+        if let Some(captured_piece_data) = self.get_mut_piece_data_at_square(to) {
+            assert!(is_capture);
+            captured_piece_data.curr_square = None;
+        }
+        let known_from = match from.get_known() {
+            Some(known_from) => known_from,
+            None => {
+                self.disambiguate_from_square(piece, from, to)
+            }
+        };
+        let piece_data = self.get_mut_piece_data_at_square(&known_from).expect("Missing piece");
+        piece_data.curr_square = Some(to.clone());
+        piece_data.has_moved = true;
+        if let Some(promotion) = promoted_to {
+            match promotion {
+                chess_pgn_parser::Piece::Rook => piece_data.behavior = Box::new(RookRules),
+                chess_pgn_parser::Piece::Knight => piece_data.behavior = Box::new(KnightRules),
+                chess_pgn_parser::Piece::Bishop => piece_data.behavior = Box::new(BishopRules),
+                chess_pgn_parser::Piece::Queen => piece_data.behavior = Box::new(QueenRules),
+                _ => panic!("Invalid promotion")
+            }
+        }
+    }
+
+    fn add_castle_move(&mut self, rank: Rank, old_rook_file: File, new_king_file: File, new_rook_file: File) {
+        let old_king_square = Square::new_known(File::E, rank);
+        let new_king_square = Square::new_known(new_king_file, rank);
+        let old_rook_square = Square::new_known(old_rook_file, rank);
+        let new_rook_square = Square::new_known(new_rook_file, rank);
+        let king_piece_data = self.get_mut_piece_data_at_square(&old_king_square).expect("Missing piece");
+        king_piece_data.curr_square = Some(new_king_square);
+        king_piece_data.has_moved = true;
+        
+        let rook_data = self.get_mut_piece_data_at_square(&old_rook_square).expect("Missing piece");
+        rook_data.curr_square = Some(new_rook_square);
+        rook_data.has_moved = true;
+    }
+
     pub fn add_pgn_moves(&mut self, pgn_moves: &str) -> Result<(), ParseError> {
         let game_moves = parse_move_sequence(pgn_moves)?;
         for game_move in game_moves.moves.iter() {
             match game_move.move_.move_ {
                 BasicMove { piece, ref to, ref from, is_capture, promoted_to } => {
-                    if let Some(captured_piece_data) = self.get_mut_piece_data_at_square(to) {
-                        assert!(is_capture);
-                        captured_piece_data.curr_square = None;
-                    }
-                    let known_from = match from.get_known() {
-                        Some(known_from) => known_from,
-                        None => {
-                            self.disambiguate_from_square(piece, from, to)
-                        }
-                    };
-                    let piece_data = self.get_mut_piece_data_at_square(&known_from).expect("Missing piece");
-                    piece_data.curr_square = Some(to.clone());
-                    piece_data.has_moved = true;
-                    if let Some(promotion) = promoted_to {
-                        match promotion {
-                            chess_pgn_parser::Piece::Rook => piece_data.behavior = Box::new(RookRules),
-                            chess_pgn_parser::Piece::Knight => piece_data.behavior = Box::new(KnightRules),
-                            chess_pgn_parser::Piece::Bishop => piece_data.behavior = Box::new(BishopRules),
-                            chess_pgn_parser::Piece::Queen => piece_data.behavior = Box::new(QueenRules),
-                            _ => panic!("Invalid promotion")
-                        }
-                    }
+                    self.add_basic_move(piece, to, from, is_capture, promoted_to);
                 },
                 ref c @ CastleKingside | ref c @ CastleQueenside => {
                     let rank = if game_move.number.is_some() {Rank::R8} else {Rank::R1};
@@ -117,17 +135,7 @@ impl Board {
                         CastleQueenside => (File::A, File::C, File::D),
                         _ => unreachable!()
                     };
-                    let old_king_square = Square::new_known(File::E, rank);
-                    let new_king_square = Square::new_known(new_king_file, rank);
-                    let old_rook_square = Square::new_known(old_rook_file, rank);
-                    let new_rook_square = Square::new_known(new_rook_file, rank);
-                    let king_piece_data = self.get_mut_piece_data_at_square(&old_king_square).expect("Missing piece");
-                    king_piece_data.curr_square = Some(new_king_square);
-                    king_piece_data.has_moved = true;
-                    
-                    let rook_data = self.get_mut_piece_data_at_square(&old_rook_square).expect("Missing piece");
-                    rook_data.curr_square = Some(new_rook_square);
-                    rook_data.has_moved = true;
+                    self.add_castle_move(rank, old_rook_file, new_king_file, new_rook_file);
                 }
             }
         }
@@ -218,6 +226,53 @@ mod tests {
 
     #[test]
     fn test_rook_capture() -> Result<(), ParseError> {
+        let mut board = Board::new();
 
+        // Remove pawns that are in the way of testing rook
+        let mut pawn = board.get_mut_piece_data_at_square(&Square::A2).expect("missing piece");
+        pawn.curr_square = None;
+        pawn = board.get_mut_piece_data_at_square(&Square::A7).expect("missing piece.");
+        pawn.curr_square = None;
+
+        let rook = board.get_piece_data_at_square(&Square::A1).expect("missing piece.");
+        let valid_squares = rook.behavior.get_valid_squares(rook, &board);
+        assert_valid_squares(&[
+            Square::A2,
+            Square::A3,
+            Square::A4,
+            Square::A5,
+            Square::A6,
+            Square::A7,
+            Square::A8,
+        ], &valid_squares);
+
+        let rook = board.get_piece_data_at_square(&Square::A8).expect("missing piece.");
+        let valid_squares = rook.behavior.get_valid_squares(rook, &board);
+        assert_valid_squares(&[
+            Square::A1,
+            Square::A2,
+            Square::A3,
+            Square::A4,
+            Square::A5,
+            Square::A6,
+            Square::A7,
+        ], &valid_squares);
+        Ok(())
+    }
+
+    #[test]
+    fn test_knight_capture() -> Result<(), ParseError> {
+        let mut board = Board::new();
+        board.add_pgn_moves("1. kb3 kf6 2. ke4 a6")?;
+        let knight = board.get_piece_data_at_square(&Square::F6).expect("missing piece");
+        let valid_squares = knight.behavior.get_valid_squares(knight, &board);
+        assert_valid_squares(&[
+            Square::G8,
+            Square::H5,
+            Square::G4,
+            Square::E4,
+            Square::D5,
+        ], &valid_squares);
+        Ok(())
     }
 }
