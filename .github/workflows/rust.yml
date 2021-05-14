@@ -38,9 +38,10 @@ jobs:
     - id: coverage
       uses: actions-rs/grcov@v0.1
     - name: attempt to upload with bash file
-      run: bash <(curl -s https://codecov.io/bash) -f ${{ steps.coverage.outputs.report }}
+      run: bash <(curl -s https://codecov.io/bash) -f ${{ steps.coverage.outputs.report }} -t ${{secrets.CODECOV_TOKEN}}
     - uses: codecov/codecov-action@v1
       with:
+        token: ${{ secrets.CODECOV_TOKEN }}
         files: ${{ steps.coverage.outputs.report }}
         flags: unittests # optional
         name: codecov-umbrella # optional
