@@ -162,7 +162,7 @@ impl Board {
         return None;
     }
     
-    pub(crate) fn get_mut_piece_data_at_square(&mut self, square: &Square) -> Option<&mut PieceData> {
+    pub fn get_mut_piece_data_at_square(&mut self, square: &Square) -> Option<&mut PieceData> {
         for piece in self.pieces.iter_mut() {
             if let Some(ref curr_square) = piece.curr_square {
                 if curr_square == square {
@@ -373,6 +373,21 @@ mod tests {
             Square::D8,
             Square::H5,
             Square::H6,
+        ], &valid_squares);
+        Ok(())
+    }
+
+    #[test]
+    fn test_promotion() -> Result<(), ParseError> {
+        let mut board = Board::new();
+        board.add_pgn_moves("1. c4 f5 2. c5 f4 3. c6 f3 4. cxb7 fxg2 5. bxc8=N gxf8=N")?;
+        let promoted_knight = board.get_piece_data_at_square(&Square::C8).expect("missing piece.");
+        let valid_squares = promoted_knight.behavior.get_valid_squares(promoted_knight, &board);
+        assert_valid_squares(&[
+            Square::A7,
+            Square::B6,
+            Square::D6,
+            Square::E7,
         ], &valid_squares);
         Ok(())
     }
