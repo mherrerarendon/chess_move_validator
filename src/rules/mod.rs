@@ -16,7 +16,7 @@ pub use bishop::BishopRules as BishopRules;
 pub use queen::QueenRules as QueenRules;
 pub use king::KingRules as KingRules;
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum UniquePiece {
     APawn, BPawn, CPawn, DPawn, EPawn, FPawn, GPawn, HPawn,
     QRook, QKnight, QBishop, Queen, King, KBishop, KKnight, KRook

@@ -1,3 +1,5 @@
+use std::collections::{HashMap, btree_map::Iter};
+
 use chess_pgn_parser::{File, Move::BasicMove, Move::CastleKingside, Move::CastleQueenside, Piece, Rank, Square, parse_move_sequence, peggler::ParseError};
 
 mod rules;
@@ -7,6 +9,29 @@ pub use rules::{UniquePiece};
 use model::{PieceData};
 
 use crate::rules::{BishopRules, KnightRules, QueenRules, RookRules};
+
+type Position = HashMap<(UniquePiece, bool), Option<Square>>;
+
+pub struct IterPosition<'a> {
+    board: &'a Board,
+    pos_num: u32
+}
+
+impl<'a> IterPosition<'a> {
+    fn new(board: &'a Board) -> IterPosition {
+        IterPosition {
+            board,
+            pos_num: 1 // TODO: pos_num should be number of entries in piece history vector
+        }
+    }
+
+    fn next() -> Option<Position> {
+        unimplemented!()
+    }
+     fn prev() -> Option<Position> {
+        unimplemented!()
+     }
+}
 
 pub struct Board {
     pieces: Vec<PieceData>,
@@ -59,6 +84,18 @@ impl Board {
             PieceData::new_king(true),
             PieceData::new_king(false),
         ]
+    }
+
+    fn curr_position(&self) -> Position {
+        let mut pos = Position::new();
+        for piece in self.pieces.iter() {
+            pos.insert((piece.piece, piece.white), piece.curr_square.clone());
+        }
+        pos
+    }
+
+    fn iter_position<'a>(&'a self) -> IterPosition {
+        IterPosition::new(self)
     }
 
     fn disambiguate_from_square(&self, piece: Piece, white: bool, from: &Square, to: &Square) -> Square {
