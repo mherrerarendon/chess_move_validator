@@ -1,5 +1,5 @@
 use chess_pgn_parser::{Square};
-use crate::model::{PieceData};
+use crate::piece_data::{PieceData};
 use super::Board;
 
 pub mod pawn;

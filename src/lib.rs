@@ -1,12 +1,12 @@
 use std::collections::{HashMap, btree_map::Iter};
 
-use chess_pgn_parser::{File, Move::BasicMove, Move::CastleKingside, Move::CastleQueenside, Piece, Rank, Square, parse_move_sequence, peggler::ParseError};
+pub use chess_pgn_parser::{File, Move::BasicMove, Move::CastleKingside, Move::CastleQueenside, Piece, Rank, Square, parse_move_sequence, peggler::ParseError};
 
 mod rules;
-mod model;
+mod piece_data;
 
 pub use rules::{UniquePiece};
-use model::{PieceData};
+use piece_data::{PieceData};
 
 use crate::rules::{BishopRules, KnightRules, QueenRules, RookRules};
 
@@ -94,7 +94,7 @@ impl Board {
         pos
     }
 
-    fn iter_position<'a>(&'a self) -> IterPosition {
+    fn iter_position(&self) -> IterPosition {
         IterPosition::new(self)
     }
 
@@ -179,6 +179,11 @@ impl Board {
         Ok(())
     }
 
+    pub fn legal_moves_from_square(&self, square: &Square) -> Vec<Square> {
+        let piece_data = self.get_piece_data_at_square(square).expect("missing piece");
+        piece_data.behavior.get_valid_squares(piece_data, self)
+    }
+
     pub fn get_valid_squares_for_piece(&self, piece: UniquePiece, white: bool) -> Vec<Square> {
         let piece_data = self.pieces.iter().find(|p| p.piece == piece && p.white == white).expect("missing piece");
         if piece_data.curr_square.is_some() {
@@ -188,7 +193,7 @@ impl Board {
         }
     }
 
-    pub(crate) fn get_piece_data_at_square(&self, square: &Square) -> Option<&PieceData> {
+    pub fn get_piece_data_at_square(&self, square: &Square) -> Option<&PieceData> {
         for piece in self.pieces.iter() {
             if let Some(ref curr_square) = piece.curr_square {
                 if curr_square == square {
