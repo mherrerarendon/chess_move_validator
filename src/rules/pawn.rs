@@ -28,8 +28,8 @@ impl PieceRules for PawnRules {
     fn get_move_only_squares(&self, piece_data: &PieceData) -> Vec<Square> {
         let mut squares: Vec<Square> = Vec::new();
         let direction = if piece_data.white {1} else {-1};
-        let curr_square = piece_data.curr_square.as_ref().unwrap();
-        if !piece_data.has_moved {
+        let curr_square = piece_data.curr_square().unwrap();
+        if !piece_data.has_moved() {
             let double_step_square = curr_square.new_with_offset(0, 2 * direction).unwrap();
             squares.push(double_step_square);
         }
@@ -44,7 +44,7 @@ impl PieceRules for PawnRules {
     fn get_capture_only_squares(&self, piece_data: &PieceData) -> Vec<Square> {
         let mut squares: Vec<Square> = Vec::new();
         let direction = if piece_data.white {1} else {-1};
-        let curr_square = piece_data.curr_square.as_ref().unwrap();
+        let curr_square = piece_data.curr_square().unwrap();
 
         if let Some(right_capture_square) = curr_square.new_with_offset(1, direction) {
             squares.push(right_capture_square);

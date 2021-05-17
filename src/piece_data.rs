@@ -6,9 +6,8 @@ use crate::{UniquePiece};
 pub struct PieceData {
     pub piece: UniquePiece,
     pub white: bool,
-    pub curr_square: Option<Square>,
     pub behavior: Box<dyn PieceRules>,
-    pub has_moved: bool
+    pub square_hist: Vec<Option<Square>>
 }
 
 impl PieceData {
@@ -25,12 +24,27 @@ impl PieceData {
                 File::H => UniquePiece::HPawn,
             },
             white,
-            curr_square: None,
             behavior: Box::new(PawnRules::new()),
-            has_moved: false
+            square_hist: Vec::new()
         };
-        pawn.curr_square = Some(pawn.behavior.get_initial_square(&pawn));
+        pawn.square_hist.push(Some(pawn.behavior.get_initial_square(&pawn)));
         pawn
+    }
+
+    pub fn curr_square(&self) -> Option<&Square> {
+        self.square_hist.last().expect("Should always have at least the initial square").as_ref()
+    }
+
+    pub fn move_unchecked(&mut self, square: Square) {
+        self.square_hist.push(Some(square))
+    }
+
+    pub fn capture(&mut self) {
+        self.square_hist.push(None)
+    }
+
+    pub fn has_moved(&self) -> bool {
+        self.square_hist.len() > 1
     }
     
     pub fn new_rook(file: File, white: bool) -> Self {
@@ -41,11 +55,10 @@ impl PieceData {
                 _ => panic!("Invalid arguments for rook creation.")
             },
             white, 
-            curr_square: None,
             behavior: Box::new(RookRules::new()), 
-            has_moved: false
+            square_hist: Vec::new()
         };
-        rook.curr_square = Some(rook.behavior.get_initial_square(&rook));
+        rook.square_hist.push(Some(rook.behavior.get_initial_square(&rook)));
         rook
     }
 
@@ -57,11 +70,10 @@ impl PieceData {
                 _ => panic!("Invalid arguments for knight creation.")
             },
             white,
-            curr_square: None,
             behavior: Box::new(KnightRules::new()),
-            has_moved: false
+            square_hist: Vec::new()
         };
-        knight.curr_square = Some(knight.behavior.get_initial_square(&knight));
+        knight.square_hist.push(Some(knight.behavior.get_initial_square(&knight)));
         knight
     }
 
@@ -73,11 +85,10 @@ impl PieceData {
                 _ => panic!("Invalid arguments for bishop creation.")
             },
             white,
-            curr_square: None,
             behavior: Box::new(BishopRules::new()),
-            has_moved: false
+            square_hist: Vec::new()
         };
-        bishop.curr_square = Some(bishop.behavior.get_initial_square(&bishop));
+        bishop.square_hist.push(Some(bishop.behavior.get_initial_square(&bishop)));
         bishop
     }
 
@@ -85,11 +96,10 @@ impl PieceData {
         let mut queen = Self {
             piece: UniquePiece::Queen,
             white,
-            curr_square: None,
             behavior: Box::new(QueenRules::new()),
-            has_moved: false
+            square_hist: Vec::new()
         };
-        queen.curr_square = Some(queen.behavior.get_initial_square(&queen));
+        queen.square_hist.push(Some(queen.behavior.get_initial_square(&queen)));
         queen
     }
 
@@ -97,11 +107,10 @@ impl PieceData {
         let mut king = Self {
             piece: UniquePiece::King,
             white,
-            curr_square: None,
             behavior: Box::new(KingRules::new()),
-            has_moved: false
+            square_hist: Vec::new()
         };
-        king.curr_square = Some(king.behavior.get_initial_square(&king));
+        king.square_hist.push(Some(king.behavior.get_initial_square(&king)));
         king
     }
 }

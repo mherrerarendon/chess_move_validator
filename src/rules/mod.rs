@@ -50,7 +50,7 @@ pub trait PieceRules {
     
     fn get_linear_squares_with_offsets(&self, piece_data: &PieceData, board: &Board, file_offset: i32, rank_offset: i32) -> Vec<Square> {
         let mut squares = Vec::new();
-        let mut curr_square = piece_data.curr_square.as_ref().unwrap().clone();
+        let mut curr_square = piece_data.curr_square().unwrap().clone();
         loop {
             if let Some(new_square) = curr_square.new_with_offset(file_offset, rank_offset) {
                 match board.get_piece_data_at_square(&new_square) {

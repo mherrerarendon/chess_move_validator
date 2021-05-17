@@ -21,7 +21,7 @@ impl PieceRules for KnightRules {
 
     fn get_move_only_squares(&self, piece_data: &PieceData) -> Vec<Square> {
         let mut squares: Vec<Square> = Vec::new();
-        let curr_square = piece_data.curr_square.as_ref().unwrap();
+        let curr_square = piece_data.curr_square().unwrap();
         if let Some(new_square) = curr_square.new_with_offset(1, 2) {squares.push(new_square);}
         if let Some(new_square) = curr_square.new_with_offset(2, 1) {squares.push(new_square);}
         if let Some(new_square) = curr_square.new_with_offset(2, -1) {squares.push(new_square);}

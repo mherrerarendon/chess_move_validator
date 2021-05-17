@@ -10,7 +10,7 @@ use piece_data::{PieceData};
 
 use crate::rules::{BishopRules, KnightRules, QueenRules, RookRules};
 
-type Position = HashMap<(UniquePiece, bool), Option<Square>>;
+type Position = HashMap<(UniquePiece, bool), Square>;
 
 pub struct IterPosition<'a> {
     board: &'a Board,
@@ -89,7 +89,9 @@ impl Board {
     fn curr_position(&self) -> Position {
         let mut pos = Position::new();
         for piece in self.pieces.iter() {
-            pos.insert((piece.piece, piece.white), piece.curr_square.clone());
+            if let Some(square) = piece.curr_square() {
+                pos.insert((piece.piece, piece.white), square.clone());
+            }
         }
         pos
     }
@@ -101,18 +103,18 @@ impl Board {
     fn disambiguate_from_square(&self, piece: Piece, white: bool, from: &Square, to: &Square) -> Square {
         let piece_data_list = self.get_all_live_piece_data_with_type(piece, white);
         if let Some(rank) = from.rank() {
-            if let Some(piece_data) = piece_data_list.iter().find(|p|p.curr_square.as_ref().unwrap().rank().unwrap() == rank) {
-                return piece_data.curr_square.as_ref().unwrap().clone();
+            if let Some(piece_data) = piece_data_list.iter().find(|p|p.curr_square().unwrap().rank().unwrap() == rank) {
+                return piece_data.curr_square().unwrap().clone();
             }
         } else if let Some(file) = from.file() {
-            if let Some(piece_data) = piece_data_list.iter().find(|p|p.curr_square.as_ref().unwrap().file().unwrap() == file) {
-                return piece_data.curr_square.as_ref().unwrap().clone();
+            if let Some(piece_data) = piece_data_list.iter().find(|p|p.curr_square().unwrap().file().unwrap() == file) {
+                return piece_data.curr_square().unwrap().clone();
             } 
         } else {
             for piece_data in piece_data_list {
                 let valid_squares = piece_data.behavior.get_valid_squares(piece_data, &self);
                 if valid_squares.iter().find(|s| *s == to).is_some() {
-                    return piece_data.curr_square.as_ref().unwrap().clone();
+                    return piece_data.curr_square().unwrap().clone();
                 }
             }
         }
@@ -122,7 +124,7 @@ impl Board {
     fn add_basic_move(&mut self, piece: Piece, white: bool, to: &Square, from: &Square, is_capture: bool, promoted_to: Option<Piece>) {
         if let Some(captured_piece_data) = self.get_mut_piece_data_at_square(to) {
             assert!(is_capture);
-            captured_piece_data.curr_square = None;
+            captured_piece_data.capture();
         }
         let known_from = match from.get_known() {
             Some(known_from) => known_from,
@@ -131,8 +133,7 @@ impl Board {
             }
         };
         let piece_data = self.get_mut_piece_data_at_square(&known_from).expect("Missing piece");
-        piece_data.curr_square = Some(to.clone());
-        piece_data.has_moved = true;
+        piece_data.move_unchecked(to.clone());
         if let Some(promotion) = promoted_to {
             match promotion {
                 chess_pgn_parser::Piece::Rook => piece_data.behavior = Box::new(RookRules),
@@ -150,12 +151,10 @@ impl Board {
         let old_rook_square = Square::new_known(old_rook_file, rank);
         let new_rook_square = Square::new_known(new_rook_file, rank);
         let king_piece_data = self.get_mut_piece_data_at_square(&old_king_square).expect("Missing piece");
-        king_piece_data.curr_square = Some(new_king_square);
-        king_piece_data.has_moved = true;
+        king_piece_data.move_unchecked(new_king_square);
         
         let rook_data = self.get_mut_piece_data_at_square(&old_rook_square).expect("Missing piece");
-        rook_data.curr_square = Some(new_rook_square);
-        rook_data.has_moved = true;
+        rook_data.move_unchecked(new_rook_square);
     }
 
     pub fn add_pgn_moves(&mut self, pgn_moves: &str) -> Result<(), ParseError> {
@@ -186,7 +185,7 @@ impl Board {
 
     pub fn get_valid_squares_for_piece(&self, piece: UniquePiece, white: bool) -> Vec<Square> {
         let piece_data = self.pieces.iter().find(|p| p.piece == piece && p.white == white).expect("missing piece");
-        if piece_data.curr_square.is_some() {
+        if piece_data.curr_square().is_some() {
             piece_data.behavior.get_valid_squares(piece_data, &self)
         } else {
             Vec::new()
@@ -195,7 +194,7 @@ impl Board {
 
     pub fn get_piece_data_at_square(&self, square: &Square) -> Option<&PieceData> {
         for piece in self.pieces.iter() {
-            if let Some(ref curr_square) = piece.curr_square {
+            if let Some(curr_square) = piece.curr_square() {
                 if curr_square == square {
                     return Some(piece);
                 }
@@ -206,7 +205,7 @@ impl Board {
     
     pub fn get_mut_piece_data_at_square(&mut self, square: &Square) -> Option<&mut PieceData> {
         for piece in self.pieces.iter_mut() {
-            if let Some(ref curr_square) = piece.curr_square {
+            if let Some(curr_square) = piece.curr_square() {
                 if curr_square == square {
                     return Some(piece);
                 }
@@ -217,7 +216,7 @@ impl Board {
 
     fn get_all_live_piece_data_with_type(&self, piece: Piece, white: bool) -> Vec<&PieceData> {
         self.pieces.iter().filter(|p| {
-            piece == Self::unique_to_piece(p.piece) && p.curr_square.is_some() && p.white == white
+            piece == Self::unique_to_piece(p.piece) && p.curr_square().is_some() && p.white == white
         }).collect()
     }
 
@@ -241,7 +240,6 @@ mod tests {
     use chess_pgn_parser::{Square, peggler::ParseError};
     use std::collections::HashSet;
 
-    // TODO: this could be a macro
     fn assert_valid_squares(expected: &[Square], actual: &[Square]) {
         let expected_set: HashSet<_> = expected.iter().collect();
         let actual_set: HashSet<_> = actual.iter().collect();
@@ -276,9 +274,9 @@ mod tests {
 
         // Remove pawns that are in the way of testing rook
         let mut pawn = board.get_mut_piece_data_at_square(&Square::A2).expect("missing piece");
-        pawn.curr_square = None;
+        pawn.capture();
         pawn = board.get_mut_piece_data_at_square(&Square::A7).expect("missing piece.");
-        pawn.curr_square = None;
+        pawn.capture();
 
         let rook = board.get_piece_data_at_square(&Square::A1).expect("missing piece.");
         assert_eq!(rook.piece, UniquePiece::QRook);
