@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Display};
+use std::collections::HashMap;
 
 pub use chess_pgn_parser::{
     parse_move_sequence, peggler::ParseError, File, Move::BasicMove, Move::CastleKingside,
@@ -28,6 +28,8 @@ pub struct Board {
 pub enum ChessError {
     IlegalMove(UniquePiece, Square, Square),
     PgnParseError,
+    IncorrectMoveParameters,
+    UnDisambiguable,
 }
 
 impl From<ParseError> for ChessError {
@@ -47,6 +49,8 @@ impl fmt::Display for ChessError {
                 )
             }
             Self::PgnParseError => write!(f, "Failed to parse pgn string"),
+            Self::IncorrectMoveParameters => write!(f, "Incorrect move parameters"),
+            Self::UnDisambiguable => write!(f, "Unable to disambiguate 'from' square"),
         }
     }
 }
@@ -113,31 +117,31 @@ impl Board {
         white: bool,
         from: &Square,
         to: &Square,
-    ) -> Square {
+    ) -> Result<Square, ChessError> {
         let piece_data_list = self.get_all_live_piece_data_with_type(piece, white);
         if let Some(rank) = from.rank() {
             if let Some(piece_data) = piece_data_list
                 .iter()
                 .find(|p| p.curr_square().unwrap().rank().unwrap() == rank)
             {
-                return piece_data.curr_square().unwrap().clone();
+                return Ok(piece_data.curr_square().unwrap().clone());
             }
         } else if let Some(file) = from.file() {
             if let Some(piece_data) = piece_data_list
                 .iter()
                 .find(|p| p.curr_square().unwrap().file().unwrap() == file)
             {
-                return piece_data.curr_square().unwrap().clone();
+                return Ok(piece_data.curr_square().unwrap().clone());
             }
         } else {
             for piece_data in piece_data_list {
                 let valid_squares = piece_data.behavior.get_valid_squares(piece_data, &self);
                 if valid_squares.iter().find(|s| *s == to).is_some() {
-                    return piece_data.curr_square().unwrap().clone();
+                    return Ok(piece_data.curr_square().unwrap().clone());
                 }
             }
         }
-        panic!("Unable to disambiguate from square");
+        Err(ChessError::UnDisambiguable)
     }
 
     fn add_basic_move(
@@ -148,18 +152,18 @@ impl Board {
         from: &Square,
         is_capture: bool,
         promoted_to: Option<Piece>,
-    ) {
+    ) -> Result<(), ChessError> {
         if let Some(captured_piece_data) = self.get_mut_piece_data_at_square(to) {
             assert!(is_capture);
             captured_piece_data.capture();
         }
         let known_from = match from.get_known() {
             Some(known_from) => known_from,
-            None => self.disambiguate_from_square(piece, white, from, to),
+            None => self.disambiguate_from_square(piece, white, from, to)?,
         };
         let piece_data = self
             .get_mut_piece_data_at_square(&known_from)
-            .expect("Missing piece");
+            .ok_or(ChessError::IncorrectMoveParameters)?;
         piece_data.move_unchecked(to.clone());
         if let Some(promotion) = promoted_to {
             match promotion {
@@ -167,9 +171,10 @@ impl Board {
                 chess_pgn_parser::Piece::Knight => piece_data.behavior = Box::new(KnightRules),
                 chess_pgn_parser::Piece::Bishop => piece_data.behavior = Box::new(BishopRules),
                 chess_pgn_parser::Piece::Queen => piece_data.behavior = Box::new(QueenRules),
-                _ => panic!("Invalid promotion"),
+                _ => return Err(ChessError::IncorrectMoveParameters),
             }
         }
+        Ok(())
     }
 
     fn add_castle_move(
@@ -178,23 +183,61 @@ impl Board {
         old_rook_file: File,
         new_king_file: File,
         new_rook_file: File,
-    ) {
+    ) -> Result<(), ChessError> {
         let old_king_square = Square::new_known(File::E, rank);
         let new_king_square = Square::new_known(new_king_file, rank);
         let old_rook_square = Square::new_known(old_rook_file, rank);
         let new_rook_square = Square::new_known(new_rook_file, rank);
         let king_piece_data = self
             .get_mut_piece_data_at_square(&old_king_square)
-            .expect("Missing piece");
+            .ok_or(ChessError::IncorrectMoveParameters)?;
         king_piece_data.move_unchecked(new_king_square);
 
         let rook_data = self
             .get_mut_piece_data_at_square(&old_rook_square)
-            .expect("Missing piece");
+            .ok_or(ChessError::IncorrectMoveParameters)?;
         rook_data.move_unchecked(new_rook_square);
+        Ok(())
     }
 
-    pub fn add_pgn_moves(&mut self, pgn_moves: &str) -> Result<(), ParseError> {
+    pub fn simple_move(
+        &mut self,
+        from: &Square,
+        to: &Square,
+        promoted_to: Option<Piece>,
+    ) -> Result<(), ChessError> {
+        let piece_data = self
+            .get_piece_data_at_square(from)
+            .ok_or(ChessError::IncorrectMoveParameters)?;
+        let piece = piece_data.piece;
+        let white = piece_data.white;
+        let is_capture = self.get_piece_data_at_square(to).is_some();
+        self.add_basic_move(
+            Self::unique_to_piece(piece),
+            white,
+            to,
+            from,
+            is_capture,
+            promoted_to,
+        )?;
+        Ok(())
+    }
+
+    pub fn castle(&mut self, king_side: bool, white: bool) -> Result<(), ChessError> {
+        let rank = if white {
+            Rank::R1
+        } else {
+            Rank::R8
+        };
+        let (old_rook_file, new_king_file, new_rook_file) = match king_side {
+            true => (File::H, File::G, File::F),
+            false => (File::A, File::C, File::D),
+        };
+        self.add_castle_move(rank, old_rook_file, new_king_file, new_rook_file)?;
+        Ok(())
+    }
+
+    pub fn add_pgn_moves(&mut self, pgn_moves: &str) -> Result<(), ChessError> {
         let game_moves = parse_move_sequence(pgn_moves)?;
         for game_move in game_moves.moves.iter() {
             match game_move.move_.move_ {
@@ -212,7 +255,7 @@ impl Board {
                         from,
                         is_capture,
                         promoted_to,
-                    );
+                    )?;
                 }
                 ref c @ CastleKingside | ref c @ CastleQueenside => {
                     let rank = if game_move.number.is_some() {
@@ -225,7 +268,7 @@ impl Board {
                         CastleQueenside => (File::A, File::C, File::D),
                         _ => unreachable!(),
                     };
-                    self.add_castle_move(rank, old_rook_file, new_king_file, new_rook_file);
+                    self.add_castle_move(rank, old_rook_file, new_king_file, new_rook_file)?;
                 }
             }
         }
@@ -299,10 +342,10 @@ impl Board {
 
 #[cfg(test)]
 mod tests {
-    use crate::UniquePiece;
+    use crate::{ChessError, UniquePiece};
 
     use super::Board;
-    use chess_pgn_parser::{peggler::ParseError, Square};
+    use chess_pgn_parser::Square;
     use std::collections::HashSet;
 
     fn assert_valid_squares(expected: &[Square], actual: &[Square]) {
@@ -312,7 +355,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pawn_capture() -> Result<(), ParseError> {
+    fn test_pawn_capture() -> Result<(), ChessError> {
         let mut board = Board::new();
         board.add_pgn_moves("1. d4 e5")?;
         let pawn = board
@@ -332,13 +375,13 @@ mod tests {
     }
 
     #[test]
-    fn test_pawn_en_passant() -> Result<(), ParseError> {
+    fn test_pawn_en_passant() -> Result<(), ChessError> {
         // TODO
         Ok(())
     }
 
     #[test]
-    fn test_rook_capture() -> Result<(), ParseError> {
+    fn test_rook_capture() -> Result<(), ChessError> {
         let mut board = Board::new();
 
         // Remove pawns that are in the way of testing rook
@@ -390,7 +433,7 @@ mod tests {
     }
 
     #[test]
-    fn test_knight_capture() -> Result<(), ParseError> {
+    fn test_knight_capture() -> Result<(), ChessError> {
         let mut board = Board::new();
         board.add_pgn_moves("1. Nc3 Nf6 2. Ne4 a6")?;
         let knight = board
@@ -423,7 +466,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bishop_capture() -> Result<(), ParseError> {
+    fn test_bishop_capture() -> Result<(), ChessError> {
         let mut board = Board::new();
         board.add_pgn_moves("1. b3 e6 2. Ba3 a6")?;
         let bishop = board
@@ -457,7 +500,7 @@ mod tests {
     }
 
     #[test]
-    fn test_queen_capture() -> Result<(), ParseError> {
+    fn test_queen_capture() -> Result<(), ChessError> {
         let mut board = Board::new();
         board.add_pgn_moves("1. c3 e6 2. Qa4 Qh4")?;
         let queen = board
@@ -519,7 +562,7 @@ mod tests {
     }
 
     #[test]
-    fn test_promotion() -> Result<(), ParseError> {
+    fn test_promotion() -> Result<(), ChessError> {
         let mut board = Board::new();
         board.add_pgn_moves("1. c4 f5 2. c5 f4 3. c6 f3 4. cxb7 fxg2 5. bxc8=N gxf8=N")?;
         let promoted_knight = board
